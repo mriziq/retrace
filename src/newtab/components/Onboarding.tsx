@@ -169,8 +169,8 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                 },
                 {
                   n: "2",
-                  title: "Embeds locally",
-                  body: "Pages are converted to semantic vectors using Gemini embeddings and stored in your browser — never on any server.",
+                  title: "Builds a local index",
+                  body: "Page text and selected media go directly to Google Gemini for embeddings. The resulting index stays in your browser.",
                 },
                 {
                   n: "3",
@@ -273,7 +273,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
               >
                 You need a Gemini API key for embeddings and search.<br />
                 You can choose a different chat provider in Config.<br />
-                It's used only in your browser.
+                Your browser sends page content to Gemini for indexing. The key and index stay in this browser.
               </p>
 
               <a

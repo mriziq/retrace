@@ -21,6 +21,7 @@ interface ParsedFunctionCall {
 }
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+const REQUEST_TIMEOUT_MS = 120_000;
 
 async function streamOneTurn(
   apiKey: string,
@@ -30,9 +31,10 @@ async function streamOneTurn(
   functionDeclarations: FunctionDeclaration[],
   onChunk: (text: string) => void
 ): Promise<{ modelParts: RawPart[]; functionCalls: ParsedFunctionCall[] }> {
-  const res = await fetch(`${BASE}/${encodeURIComponent(model)}:streamGenerateContent?alt=sse&key=${apiKey}`, {
+  const res = await fetch(`${BASE}/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     body: JSON.stringify({
       contents,
       systemInstruction: { parts: [{ text: systemInstruction }] },
@@ -51,6 +53,26 @@ async function streamOneTurn(
   const modelParts: RawPart[] = [];
   const functionCalls: ParsedFunctionCall[] = [];
 
+  const processLine = (line: string) => {
+    if (!line.startsWith("data: ")) return;
+    const json = line.slice(6).trim();
+    if (!json) return;
+
+    let event: { candidates?: Array<{ content?: { parts?: RawPart[] } }>; error?: { message?: string } };
+    try { event = JSON.parse(json); } catch { return; }
+    if (event.error) throw new Error(event.error.message || "Gemini stream error");
+
+    for (const part of event.candidates?.[0]?.content?.parts ?? []) {
+      modelParts.push(part);
+      const fc = part.functionCall as { name?: string; args?: Record<string, unknown>; id?: string } | undefined;
+      if (fc?.name) {
+        functionCalls.push({ name: fc.name, args: fc.args ?? {}, id: fc.id });
+      } else if (typeof part.text === "string" && !part.thought) {
+        onChunk(part.text);
+      }
+    }
+  };
+
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -59,27 +81,11 @@ async function streamOneTurn(
     const lines = buffer.split("\n");
     buffer = lines.pop() ?? "";
 
-    for (const line of lines) {
-      if (!line.startsWith("data: ")) continue;
-      const json = line.slice(6).trim();
-      if (!json) continue;
-
-      let event: { candidates?: Array<{ content?: { parts?: RawPart[] } }> };
-      try { event = JSON.parse(json); } catch { continue; }
-
-      for (const part of event.candidates?.[0]?.content?.parts ?? []) {
-        // Always push the raw part verbatim — preserves thoughtSignature, id, thought, etc.
-        modelParts.push(part);
-
-        const fc = part.functionCall as { name?: string; args?: Record<string, unknown>; id?: string } | undefined;
-        if (fc?.name) {
-          functionCalls.push({ name: fc.name, args: fc.args ?? {}, id: fc.id });
-        } else if (typeof part.text === "string" && !part.thought) {
-          onChunk(part.text as string);
-        }
-      }
-    }
+    lines.forEach(processLine);
   }
+
+  buffer += decoder.decode();
+  buffer.split("\n").forEach(processLine);
 
   return { modelParts, functionCalls };
 }
@@ -112,6 +118,8 @@ export async function runChat(
       apiKey, model, contents, systemInstruction, functionDeclarations, onChunk
     );
 
+    if (!modelParts.length) throw new Error("Gemini returned an empty response.");
+
     contents.push({ role: "model", parts: modelParts });
 
     if (!functionCalls.length) break;
@@ -131,6 +139,14 @@ export async function runChat(
     );
 
     contents.push({ role: "user", parts: responses });
+
+    if (round === maxRounds) {
+      onStatus?.("thinking");
+      const finalTurn = await streamOneTurn(apiKey, model, contents, systemInstruction, [], onChunk);
+      if (!finalTurn.modelParts.length) throw new Error("Gemini returned an empty response.");
+      contents.push({ role: "model", parts: finalTurn.modelParts });
+      break;
+    }
   }
 
   onStatus?.(null);

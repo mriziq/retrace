@@ -1,7 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { Settings } from "./components/Settings";
 import { Onboarding } from "./components/Onboarding";
-import type { ChatSettings } from "../shared/chatProviders";
+import { readChatSettings, type ChatSettings } from "../shared/chatProviders";
 
 const ChatApp = lazy(() => import("./ChatApp"));
 
@@ -10,13 +10,13 @@ export default function App() {
   const [onboardingDone, setOnboardingDone] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [ready, setReady] = useState(false);
-  const [chatSettings, setChatSettings] = useState<ChatSettings>({ provider: "gemini", model: "gemini-3-flash-preview", openaiApiKey: "", anthropicApiKey: "" });
+  const [chatSettings, setChatSettings] = useState<ChatSettings>(() => readChatSettings(null));
 
   useEffect(() => {
     chrome.storage.local.get(["geminiApiKey", "theme", "onboardingDone", "chatSettings"], (result) => {
       setApiKey(result.geminiApiKey ?? null);
       setOnboardingDone(!!result.onboardingDone);
-      if (result.chatSettings) setChatSettings(result.chatSettings);
+      setChatSettings(readChatSettings(result.chatSettings));
       const saved = result.theme === "light" ? "light" : "dark";
       setTheme(saved);
       document.documentElement.setAttribute("data-theme", saved);
@@ -62,7 +62,7 @@ export default function App() {
         onSignOut={() => {
           chrome.storage.local.remove(["geminiApiKey", "chatSettings"]);
           setApiKey(null);
-          setChatSettings({ provider: "gemini", model: "gemini-3-flash-preview", openaiApiKey: "", anthropicApiKey: "" });
+          setChatSettings(readChatSettings(null));
           setOnboardingDone(true);
         }}
         onChangeKey={(key) => {

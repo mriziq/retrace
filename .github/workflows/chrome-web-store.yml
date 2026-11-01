@@ -1,0 +1,105 @@
+name: Chrome Web Store
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chrome-web-store
+  cancel-in-progress: false
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npx tsc --noEmit
+      - run: npm run build
+      - name: Prepare Chrome Web Store ZIP
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          node scripts/prepare-store-manifest.mjs "$RUN_NUMBER"
+          (cd dist && zip -qr "$RUNNER_TEMP/retrace-chrome-web-store.zip" .)
+          unzip -t "$RUNNER_TEMP/retrace-chrome-web-store.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: retrace-chrome-web-store
+          path: ${{ runner.temp }}/retrace-chrome-web-store.zip
+          if-no-files-found: error
+      - name: Check publishing configuration
+        if: ${{ github.ref == 'refs/heads/main' }}
+        env:
+          PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+          EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+          SERVICE_ACCOUNT_JSON: ${{ secrets.CWS_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$PUBLISHER_ID" ] && [ -z "$EXTENSION_ID" ]; then
+            echo 'Chrome Web Store IDs are not configured; ZIP artifact is available for the first manual upload.'
+            exit 0
+          fi
+          if [ -z "$PUBLISHER_ID" ] || [ -z "$EXTENSION_ID" ]; then
+            echo 'Set both CWS_PUBLISHER_ID and CWS_EXTENSION_ID repository variables.' >&2
+            exit 1
+          fi
+          if [ -z "$SERVICE_ACCOUNT_JSON" ]; then
+            echo 'CWS_SERVICE_ACCOUNT_JSON secret is required when CWS IDs are configured.' >&2
+            exit 1
+          fi
+      - id: auth
+        if: ${{ github.ref == 'refs/heads/main' && vars.CWS_PUBLISHER_ID != '' && vars.CWS_EXTENSION_ID != '' }}
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.CWS_SERVICE_ACCOUNT_JSON }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/chromewebstore
+      - name: Upload and submit for review
+        if: ${{ github.ref == 'refs/heads/main' && vars.CWS_PUBLISHER_ID != '' && vars.CWS_EXTENSION_ID != '' }}
+        env:
+          ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+          EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+        run: |
+          set -euo pipefail
+          item="publishers/$PUBLISHER_ID/items/$EXTENSION_ID"
+          base="https://chromewebstore.googleapis.com/v2/$item"
+          response="$RUNNER_TEMP/cws-response.json"
+          curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H 'Content-Type: application/zip' \
+            -X POST -T "$RUNNER_TEMP/retrace-chrome-web-store.zip" \
+            "https://chromewebstore.googleapis.com/upload/v2/$item:upload" \
+            -o "$response"
+          state="$(jq -r '.uploadState // empty' "$response")"
+          for attempt in {1..12}; do
+            if [ "$state" != IN_PROGRESS ] && [ "$state" != UPLOAD_IN_PROGRESS ]; then
+              break
+            fi
+            sleep 10
+            curl --fail-with-body --silent --show-error \
+              -H "Authorization: Bearer $ACCESS_TOKEN" \
+              "$base:fetchStatus" -o "$response"
+            state="$(jq -r '.lastAsyncUploadState // empty' "$response")"
+          done
+          if [ "$state" != SUCCEEDED ] && [ "$state" != UPLOAD_SUCCEEDED ]; then
+            echo "Chrome Web Store upload did not succeed: $state" >&2
+            jq -r '.error.message // .message // empty' "$response" >&2
+            exit 1
+          fi
+          curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H 'Content-Type: application/json' \
+            -X POST -d '{"publishType":"DEFAULT_PUBLISH","blockOnWarnings":true}' \
+            "$base:publish" -o "$response"
+          jq -e '.state != null' "$response" > /dev/null
+          echo "Chrome Web Store submission state: $(jq -r '.state' "$response")"

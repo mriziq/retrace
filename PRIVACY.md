@@ -28,7 +28,7 @@ Your history index is stored in local IndexedDB. API keys are stored in Chrome's
 ### Page Content
 - The content script reads visible text from the page, plus selected image and audio URLs, to build a searchable index.
 - The extension stores an excerpt and up to roughly 30,000 characters of page text locally for indexing and search.
-- It does not intentionally read passwords, form values, or authenticated content.
+- It does not intentionally read passwords or form values. Visible text on pages you visit, including signed-in pages, may be indexed.
 
 ### Embeddings
 - Page text and selected media are sent directly from your browser to Google's Gemini API when indexing runs.
@@ -42,6 +42,7 @@ Your history index is stored in local IndexedDB. API keys are stored in Chrome's
 - The Gemini key is used for embeddings and semantic search, and for chat if you select Gemini.
 - If you select OpenAI or Anthropic for chat, you provide a separate key for that provider. Your chat prompt, conversation, and history-search tool results (including relevant page titles, URLs, and excerpts) are sent directly to that provider.
 - All keys are stored in **chrome.storage.local**. The developer never sees, receives, or stores them.
+- Keys in local browser storage are not encrypted by Retrace. Chrome profiles and extensions with sufficient access to your device may expose them.
 
 ---
 

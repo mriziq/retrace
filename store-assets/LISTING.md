@@ -4,7 +4,7 @@
 *(≤132 characters)*
 
 ```
-Search your browsing history in plain English. Private, local, no account required.
+Search your browsing history in plain English. Local index, direct AI requests, no account required.
 ```
 
 ---

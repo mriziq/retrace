@@ -92,6 +92,7 @@ export default function ChatApp({ apiKey, chatSettings, onChangeChatSettings, th
   const [error, setError] = useState<string | null>(null);
   const historyRef = useRef<GeminiMessage[]>([]);
   const textHistoryRef = useRef<TextMessage[]>([]);
+  const chatModel = chatSettings.models[chatSettings.provider];
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef(false);
 
@@ -137,7 +138,7 @@ export default function ChatApp({ apiKey, chatSettings, onChangeChatSettings, th
     historyRef.current = [];
     textHistoryRef.current = [];
     setMessages([]);
-  }, [chatSettings.provider, chatSettings.model]);
+  }, [chatSettings.provider, chatModel]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); });
 
   const sendMessage = useCallback(async (text: string) => {
@@ -145,7 +146,8 @@ export default function ChatApp({ apiKey, chatSettings, onChangeChatSettings, th
 
     const provider = chatSettings.provider;
     const chatKey = provider === "openai" ? chatSettings.openaiApiKey : chatSettings.anthropicApiKey;
-    if (provider !== "gemini" && (!chatSettings.model.trim() || !chatKey.trim())) {
+    if (provider !== "gemini" && (!chatModel.trim() || !chatKey.trim())) {
+      setInput(text);
       setError(`Set a ${provider === "openai" ? "OpenAI" : "Anthropic"} model and API key in Config first.`);
       return;
     }
@@ -190,7 +192,7 @@ export default function ChatApp({ apiKey, chatSettings, onChangeChatSettings, th
       if (provider === "gemini") {
         const finalHistory = await runChat(
           apiKey,
-          chatSettings.model.trim() || "gemini-3-flash-preview",
+          chatModel,
           text,
           historyRef.current,
           `Today's date is ${today}.\n\n${SYSTEM_INSTRUCTION}`,
@@ -207,7 +209,7 @@ export default function ChatApp({ apiKey, chatSettings, onChangeChatSettings, th
         historyRef.current = finalHistory;
       } else {
         textHistoryRef.current = await runOtherChat(
-          provider, chatSettings.model.trim(), chatKey, text, textHistoryRef.current,
+          provider, chatModel, chatKey, text, textHistoryRef.current,
           `Today's date is ${today}.\n\n${SYSTEM_INSTRUCTION}`,
           FUNCTION_DECLARATIONS, executors,
           (response) => setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: response } : m)),
@@ -223,7 +225,7 @@ export default function ChatApp({ apiKey, chatSettings, onChangeChatSettings, th
       setIsLoading(false);
       setAgentStatus(null);
     }
-  }, [isLoading, apiKey, chatSettings]);
+  }, [isLoading, apiKey, chatSettings, chatModel]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -258,7 +260,7 @@ export default function ChatApp({ apiKey, chatSettings, onChangeChatSettings, th
         </h1>
 
         <div className="flex items-center gap-4">
-          <span className="font-mono" title={chatSettings.model} style={{ fontSize: "0.65rem", color: "var(--dim)" }}>
+          <span className="font-mono" title={chatModel} style={{ fontSize: "0.65rem", color: "var(--dim)" }}>
             {chatSettings.provider === "gemini" ? "Gemini" : chatSettings.provider === "openai" ? "OpenAI" : "Anthropic"}
           </span>
           {!showConfig && activePhase && (
@@ -298,6 +300,7 @@ export default function ChatApp({ apiKey, chatSettings, onChangeChatSettings, th
           activePhase={activePhase}
           apiKey={apiKey}
           chatSettings={chatSettings}
+          chatBusy={isLoading}
           onChangeChatSettings={onChangeChatSettings}
           onRun={() => runPipeline(apiKey)}
           onCancel={() => { cancelRef.current = true; }}

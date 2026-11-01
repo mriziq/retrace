@@ -18,7 +18,7 @@ The index stays in your browser. There is no Retrace server or account. Indexing
 
 ### Chrome Web Store
 
-[Install from the Chrome Web Store](#) _(link coming soon)_
+The store listing is being prepared. For now, use the manual installation steps below. Maintainer instructions: [Chrome Web Store publishing](docs/chrome-web-store.md).
 
 ### Load unpacked (manual install)
 
@@ -46,10 +46,10 @@ In **Config → Chat model**, select a provider, enter a model ID, and save that
 
 ## Privacy
 
-- **No backend.** There is no server associated with this extension. All data is stored in IndexedDB on your device.
+- **No Retrace backend.** The history index is stored in IndexedDB and keys in Chrome's local extension storage. Chat history stays in memory for the current session.
 - **No tracking.** The extension does not collect analytics, usage data, or any personally identifiable information.
 - **You control your data.** You can clear your index at any time from the extension's settings.
-- **Direct API calls only.** AI requests go from your browser to Google for embeddings and search, and to your chosen chat provider for conversations.
+- **Direct API calls only.** Indexing sends page text and selected media to Google Gemini. Search queries go to Gemini for embeddings. Chat requests, including relevant history results, go to your chosen provider.
 
 See [PRIVACY.md](PRIVACY.md) for the full privacy policy.
 
