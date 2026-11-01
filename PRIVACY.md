@@ -1,6 +1,6 @@
 # Privacy Policy — Retrace
 
-**Last updated: March 17, 2026**
+**Last updated: October 31, 2026**
 
 ---
 
@@ -18,43 +18,45 @@ Retrace is a Chrome extension that lets you search and chat with your own browsi
 
 ## What Data the Extension Uses (Locally)
 
-All data the extension reads or generates stays on your device, stored in your browser's local IndexedDB.
+Your history index is stored in local IndexedDB. API keys are stored in Chrome's local extension storage. Content sent to AI providers is described below.
 
 ### Browsing History
-- The extension reads the **title and URL** of pages you visit.
+- The extension reads the **title, URL, and visit time** of pages you visit.
 - This data is stored **locally in IndexedDB** in your browser profile.
-- It is never transmitted to the developer or any third party.
+- It is never transmitted to the developer.
 
 ### Page Content
-- The background service worker may fetch the **title and meta description** of pages to improve embedding quality.
-- No full page content, passwords, form data, or authenticated content is stored.
+- The content script reads visible text from the page, plus selected image and audio URLs, to build a searchable index.
+- The extension stores an excerpt and up to roughly 30,000 characters of page text locally for indexing and search.
+- It does not intentionally read passwords or form values. Visible text on pages you visit, including signed-in pages, may be indexed.
 
 ### Embeddings
-- Titles and URLs are converted into vector embeddings using the OpenAI API (see below).
-- These embeddings are stored **locally in IndexedDB** alongside the original text.
+- Page text and selected media are sent directly from your browser to Google's Gemini API when indexing runs.
+- The resulting embeddings are stored **locally in IndexedDB** alongside the indexed page data.
 
 ---
 
-## Your OpenAI API Key
+## Your API Keys
 
-- You provide your own OpenAI API key in the extension settings.
-- The key is stored in **chrome.storage.local**, which is local to your browser and not synced to the cloud (unless you have Chrome Sync enabled for extension storage — check your Chrome settings).
-- The key is used **only** to make requests directly from your browser to `api.openai.com` — specifically to the Embeddings API (`text-embedding-3-small`) and the Chat API (`gpt-4o`).
-- The developer never sees, receives, or stores your API key.
+- You provide your own Google Gemini API key in the extension settings.
+- The Gemini key is used for embeddings and semantic search, and for chat if you select Gemini.
+- If you select OpenAI or Anthropic for chat, you provide a separate key for that provider. Your chat prompt, conversation, and history-search tool results (including relevant page titles, URLs, and excerpts) are sent directly to that provider.
+- All keys are stored in **chrome.storage.local**. The developer never sees, receives, or stores them.
+- Keys in local browser storage are not encrypted by Retrace. Chrome profiles and extensions with sufficient access to your device may expose them.
 
 ---
 
 ## Third-Party Services
 
-The only third-party service this extension communicates with is **OpenAI** (`api.openai.com`), and only when you explicitly trigger an embedding or chat operation. Your use of OpenAI's API is governed by [OpenAI's Privacy Policy](https://openai.com/privacy).
+AI requests go directly from your browser to **Google's Gemini API** (`generativelanguage.googleapis.com`) for embeddings and semantic search. Chat requests go to the selected provider: Google Gemini, **OpenAI** (`api.openai.com`), or **Anthropic** (`api.anthropic.com`). Your use of each API is governed by that provider's terms and privacy policy.
 
 ---
 
 ## Data Retention and Deletion
 
-- All extension data is stored locally in your browser's IndexedDB.
-- You can delete all extension data at any time by uninstalling the extension or clearing site data for the extension in Chrome settings (`chrome://settings/siteData`).
-- There is no remote copy of your data to request deletion of, because none is ever sent anywhere.
+- The history index is stored in IndexedDB and API keys in **chrome.storage.local**.
+- You can clear the history index in Config and remove saved keys with **Remove keys & sign out**. Uninstalling the extension or clearing its site data in Chrome settings also removes local extension data.
+- Retrace does not retain a remote copy of your data. Data sent to AI providers is handled under their policies and terms.
 
 ---
 

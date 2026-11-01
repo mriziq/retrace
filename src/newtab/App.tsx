@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { Settings } from "./components/Settings";
 import { Onboarding } from "./components/Onboarding";
+import { readChatSettings, type ChatSettings } from "../shared/chatProviders";
 
 const ChatApp = lazy(() => import("./ChatApp"));
 
@@ -9,11 +10,13 @@ export default function App() {
   const [onboardingDone, setOnboardingDone] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [ready, setReady] = useState(false);
+  const [chatSettings, setChatSettings] = useState<ChatSettings>(() => readChatSettings(null));
 
   useEffect(() => {
-    chrome.storage.local.get(["geminiApiKey", "theme", "onboardingDone"], (result) => {
+    chrome.storage.local.get(["geminiApiKey", "theme", "onboardingDone", "chatSettings"], (result) => {
       setApiKey(result.geminiApiKey ?? null);
       setOnboardingDone(!!result.onboardingDone);
+      setChatSettings(readChatSettings(result.chatSettings));
       const saved = result.theme === "light" ? "light" : "dark";
       setTheme(saved);
       document.documentElement.setAttribute("data-theme", saved);
@@ -49,11 +52,17 @@ export default function App() {
     <Suspense fallback={null}>
       <ChatApp
         apiKey={apiKey}
+        chatSettings={chatSettings}
+        onChangeChatSettings={(settings) => {
+          chrome.storage.local.set({ chatSettings: settings });
+          setChatSettings(settings);
+        }}
         theme={theme}
         onThemeChange={applyTheme}
         onSignOut={() => {
-          chrome.storage.local.remove(["geminiApiKey"]);
+          chrome.storage.local.remove(["geminiApiKey", "chatSettings"]);
           setApiKey(null);
+          setChatSettings(readChatSettings(null));
           setOnboardingDone(true);
         }}
         onChangeKey={(key) => {

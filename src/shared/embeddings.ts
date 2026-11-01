@@ -83,9 +83,9 @@ type TaskType = "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY";
 const GEMINI_EMBEDDING_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2-preview:embedContent";
 
 async function callGeminiEmbedding(parts: object[], apiKey: string, taskType: TaskType): Promise<number[]> {
-  const response = await fetch(`${GEMINI_EMBEDDING_URL}?key=${apiKey}`, {
+  const response = await fetch(GEMINI_EMBEDDING_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
     body: JSON.stringify({
       model: "models/gemini-embedding-2-preview",
       content: { parts },

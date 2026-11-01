@@ -7,6 +7,7 @@ import { searchHistory, embedPendingItems } from "../shared/embeddings";
 import { enrichPendingItems } from "../shared/enrichment";
 import { getIndexStats, importBrowserHistory, getRecentItems } from "../shared/db";
 import { runChat, type GeminiMessage } from "../shared/geminiChat";
+import { runOtherChat, type ChatSettings, type TextMessage } from "../shared/chatProviders";
 
 interface Stats {
   total: number;
@@ -72,13 +73,15 @@ const FUNCTION_DECLARATIONS = [
 
 interface ChatAppProps {
   apiKey: string;
+  chatSettings: ChatSettings;
+  onChangeChatSettings: (settings: ChatSettings) => void;
   theme: "dark" | "light";
   onThemeChange: (t: "dark" | "light") => void;
   onSignOut: () => void;
   onChangeKey: (key: string) => void;
 }
 
-export default function ChatApp({ apiKey, theme, onThemeChange, onSignOut, onChangeKey }: ChatAppProps) {
+export default function ChatApp({ apiKey, chatSettings, onChangeChatSettings, theme, onThemeChange, onSignOut, onChangeKey }: ChatAppProps) {
   const [stats, setStats] = useState<Stats>(EMPTY_STATS);
   const [activePhase, setActivePhase] = useState<ActivePhase | null>(null);
   const [showConfig, setShowConfig] = useState(false);
@@ -86,7 +89,10 @@ export default function ChatApp({ apiKey, theme, onThemeChange, onSignOut, onCha
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [agentStatus, setAgentStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const historyRef = useRef<GeminiMessage[]>([]);
+  const textHistoryRef = useRef<TextMessage[]>([]);
+  const chatModel = chatSettings.models[chatSettings.provider];
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef(false);
 
@@ -128,15 +134,30 @@ export default function ChatApp({ apiKey, theme, onThemeChange, onSignOut, onCha
   }, [refreshStats]);
 
   useEffect(() => { runPipeline(apiKey); }, [apiKey, runPipeline]);
+  useEffect(() => {
+    historyRef.current = [];
+    textHistoryRef.current = [];
+    setMessages([]);
+  }, [chatSettings.provider, chatModel]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); });
 
   const sendMessage = useCallback(async (text: string) => {
     if (isLoading) return;
 
+    const provider = chatSettings.provider;
+    const chatKey = provider === "openai" ? chatSettings.openaiApiKey : chatSettings.anthropicApiKey;
+    if (provider !== "gemini" && (!chatModel.trim() || !chatKey.trim())) {
+      setInput(text);
+      setError(`Set a ${provider === "openai" ? "OpenAI" : "Anthropic"} model and API key in Config first.`);
+      return;
+    }
+    setError(null);
+
+    const userId = crypto.randomUUID();
     const assistantId = crypto.randomUUID();
     setMessages((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), role: "user", content: text },
+      { id: userId, role: "user", content: text },
       { id: assistantId, role: "assistant", content: "" },
     ]);
     setIsLoading(true);
@@ -168,35 +189,43 @@ export default function ChatApp({ apiKey, theme, onThemeChange, onSignOut, onCha
     };
 
     try {
-      const finalHistory = await runChat(
-        apiKey,
-        text,
-        historyRef.current,
-        `Today's date is ${today}.\n\n${SYSTEM_INSTRUCTION}`,
-        FUNCTION_DECLARATIONS,
-        executors,
-        (chunk) => {
-          setMessages((prev) => prev.map((m) =>
-            m.id === assistantId ? { ...m, content: m.content + chunk } : m
-          ));
-        },
-        3,
-        setAgentStatus
-      );
-      historyRef.current = finalHistory;
+      if (provider === "gemini") {
+        const finalHistory = await runChat(
+          apiKey,
+          chatModel,
+          text,
+          historyRef.current,
+          `Today's date is ${today}.\n\n${SYSTEM_INSTRUCTION}`,
+          FUNCTION_DECLARATIONS,
+          executors,
+          (chunk) => {
+            setMessages((prev) => prev.map((m) =>
+              m.id === assistantId ? { ...m, content: m.content + chunk } : m
+            ));
+          },
+          3,
+          setAgentStatus
+        );
+        historyRef.current = finalHistory;
+      } else {
+        textHistoryRef.current = await runOtherChat(
+          provider, chatModel, chatKey, text, textHistoryRef.current,
+          `Today's date is ${today}.\n\n${SYSTEM_INSTRUCTION}`,
+          FUNCTION_DECLARATIONS, executors,
+          (response) => setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: response } : m)),
+          setAgentStatus
+        );
+      }
     } catch (err) {
       console.error("Chat error:", err);
-      setMessages((prev) => {
-        const updated = [...prev];
-        const last = updated[updated.length - 1];
-        if (last?.id === assistantId && !last.content) updated.pop();
-        return updated;
-      });
+      setMessages((prev) => prev.filter((m) => m.id !== userId && m.id !== assistantId));
+      setInput(text);
+      setError(`Chat failed: ${err instanceof Error ? err.message : "Unknown error"}`);
     } finally {
       setIsLoading(false);
       setAgentStatus(null);
     }
-  }, [isLoading, apiKey]);
+  }, [isLoading, apiKey, chatSettings, chatModel]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -231,6 +260,9 @@ export default function ChatApp({ apiKey, theme, onThemeChange, onSignOut, onCha
         </h1>
 
         <div className="flex items-center gap-4">
+          <span className="font-mono" title={chatModel} style={{ fontSize: "0.65rem", color: "var(--dim)" }}>
+            {chatSettings.provider === "gemini" ? "Gemini" : chatSettings.provider === "openai" ? "OpenAI" : "Anthropic"}
+          </span>
           {!showConfig && activePhase && (
             <span className="font-mono" style={{ fontSize: "0.68rem", color: "var(--amber)", letterSpacing: "0.05em" }}>
               {statusLabel()}
@@ -255,11 +287,21 @@ export default function ChatApp({ apiKey, theme, onThemeChange, onSignOut, onCha
         </div>
       </header>
 
+      {error && (
+        <div className="flex items-center justify-between gap-3 px-4 py-2" style={{ background: "var(--ink-1)", borderBottom: "1px solid #5A2828" }}>
+          <span className="font-mono" style={{ fontSize: "0.72rem", color: "#B05050" }}>{error}</span>
+          <button onClick={() => setError(null)} aria-label="Dismiss error" style={{ color: "#B05050", background: "none", border: 0, cursor: "pointer" }}>×</button>
+        </div>
+      )}
+
       {showConfig ? (
         <Config
           stats={stats}
           activePhase={activePhase}
           apiKey={apiKey}
+          chatSettings={chatSettings}
+          chatBusy={isLoading}
+          onChangeChatSettings={onChangeChatSettings}
           onRun={() => runPipeline(apiKey)}
           onCancel={() => { cancelRef.current = true; }}
           onRefresh={() => refreshStats()}

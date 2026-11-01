@@ -14,6 +14,19 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 });
 
+// API keys live in chrome.storage.local. Content scripts never need access to them.
+chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" });
+
+function isWebUrl(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  try {
+    const protocol = new URL(value).protocol;
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function getMainContentRoot(doc: Document): HTMLElement | null {
   return (doc.querySelector("article") ?? doc.querySelector("main") ?? doc.body) as HTMLElement | null;
 }
@@ -105,9 +118,10 @@ function parsePageMetadata(doc: Document) {
   };
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type === "FETCH_PAGE") {
-    const url = message.url as string;
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "FETCH_PAGE") {
+    if (!sender.url?.startsWith(`chrome-extension://${chrome.runtime.id}/`) || !isWebUrl(message.url)) return;
+    const url = message.url;
     fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS), credentials: "omit" })
       .then(async (response) => {
         if (!response.ok) return sendResponse(null);
@@ -145,8 +159,10 @@ chrome.history.onVisited.addListener((result) => {
   });
 });
 
-chrome.runtime.onMessage.addListener((message) => {
-  if (message.type !== "PAGE_CONTENT") return;
+chrome.runtime.onMessage.addListener((message, sender) => {
+  if (message?.type !== "PAGE_CONTENT") return;
+
+  if (!sender.tab || !isWebUrl(message.payload?.url) || sender.url !== message.payload.url) return;
 
   const { url, title, excerpt, embedContent, mediaUrls } = message.payload as {
     url: string;
@@ -155,8 +171,6 @@ chrome.runtime.onMessage.addListener((message) => {
     embedContent: string;
     mediaUrls: { images: string[]; audio: string[] };
   };
-
-  if (!url || shouldSkip(url)) return;
 
   getHistoryItem(url).then((existing) => {
     if (existing?.enriched) return;

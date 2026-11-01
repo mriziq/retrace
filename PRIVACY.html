@@ -130,10 +130,10 @@
   <div class="container">
     <div class="badge">Chrome Extension</div>
     <h1>Privacy Policy</h1>
-    <p class="meta">Retrace &nbsp;·&nbsp; Last updated: March 17, 2026</p>
+    <p class="meta">Retrace &nbsp;·&nbsp; Last updated: October 31, 2026</p>
 
     <div class="highlight-box">
-      <strong>The short version:</strong> Everything stays on your device. The developer collects no data — no analytics, no telemetry, no backend.
+      <strong>The short version:</strong> Your index stays on your device and the developer collects no data. Gemini handles indexing and search; chat goes directly to your selected AI provider. No Retrace backend is involved.
     </div>
 
     <h2>Overview</h2>
@@ -143,39 +143,41 @@
     <p><strong>None.</strong> There is no analytics, no telemetry, no crash reporting, and no server operated by this extension.</p>
 
     <h2>What Data the Extension Uses (Locally)</h2>
-    <p>All data stays on your device, stored in your browser's local IndexedDB.</p>
+    <p>Your history index is stored in local IndexedDB. API keys are stored in Chrome's local extension storage. Content sent to AI providers is described below.</p>
 
     <h3>Browsing History</h3>
     <ul>
-      <li>The extension reads the <strong>title and URL</strong> of pages you visit.</li>
-      <li>This data is stored locally in IndexedDB — never transmitted anywhere.</li>
+      <li>The extension reads the <strong>title, URL, and visit time</strong> of pages you visit.</li>
+      <li>This data is stored locally in IndexedDB and is never transmitted to the developer.</li>
     </ul>
 
     <h3>Page Content</h3>
     <ul>
-      <li>The background service worker may read the <strong>title and meta description</strong> of pages to improve search quality.</li>
-      <li>No full page content, passwords, form data, or authenticated content is stored.</li>
+      <li>The content script reads visible text from the page, plus selected image and audio URLs, to build a searchable index.</li>
+      <li>The extension stores an excerpt and up to roughly 30,000 characters of page text locally for indexing and search.</li>
+      <li>It does not intentionally read passwords or form values. Visible text on pages you visit, including signed-in pages, may be indexed.</li>
     </ul>
 
     <h3>Embeddings</h3>
     <ul>
-      <li>Titles and URLs are converted into vector embeddings via the OpenAI API.</li>
-      <li>These embeddings are stored locally in IndexedDB alongside the original text.</li>
+      <li>Page text and selected media are sent directly from your browser to Google's Gemini API when indexing runs.</li>
+      <li>The resulting embeddings are stored locally in IndexedDB alongside the indexed page data.</li>
     </ul>
 
-    <h2>Your OpenAI API Key</h2>
+    <h2>Your API Keys</h2>
     <ul>
-      <li>You provide your own OpenAI API key in the extension settings.</li>
-      <li>It is stored in <code>chrome.storage.local</code> — local to your browser, not synced to any cloud by this extension.</li>
-      <li>It is used <strong>only</strong> to make requests from your browser directly to <code>api.openai.com</code> (embeddings and chat).</li>
-      <li>The developer never sees, receives, or stores your API key.</li>
+      <li>You provide your own Google Gemini API key in the extension settings.</li>
+      <li>The Gemini key is used for embeddings and semantic search, and for chat if you select Gemini.</li>
+      <li>If you select OpenAI or Anthropic for chat, you provide a separate key. Your chat prompt, conversation, and history-search results (including relevant page titles, URLs, and excerpts) are sent directly to that provider.</li>
+      <li>All keys are stored in <code>chrome.storage.local</code>. The developer never sees, receives, or stores them.</li>
+      <li>Keys in local browser storage are not encrypted by Retrace. Chrome profiles and extensions with sufficient access to your device may expose them.</li>
     </ul>
 
     <h2>Third-Party Services</h2>
-    <p>The only external service this extension contacts is <strong>OpenAI</strong> (<code>api.openai.com</code>), and only when you trigger an embedding or chat action. Your use of OpenAI is governed by <a href="https://openai.com/privacy" target="_blank" rel="noopener">OpenAI's Privacy Policy</a>.</p>
+    <p>AI requests go directly from your browser to <strong>Google's Gemini API</strong> (<code>generativelanguage.googleapis.com</code>) for embeddings and semantic search. Chat requests go to your selected provider: Google Gemini, <strong>OpenAI</strong> (<code>api.openai.com</code>), or <strong>Anthropic</strong> (<code>api.anthropic.com</code>). Each provider handles data under its own terms and privacy policy.</p>
 
     <h2>Data Deletion</h2>
-    <p>All extension data lives in your browser's IndexedDB. Delete it any time by uninstalling the extension or clearing its site data in Chrome settings. There is no remote copy to request deletion of.</p>
+    <p>The history index lives in IndexedDB; API keys live in Chrome's local extension storage. Clear the index in Config and remove keys with <strong>Remove keys &amp; sign out</strong>. Uninstalling the extension or clearing its site data also removes local extension data. Retrace does not retain a remote copy. Data sent to AI providers is handled under their policies and terms.</p>
 
     <h2>Children's Privacy</h2>
     <p>This extension is not directed at children under 13 and does not knowingly collect any information from children.</p>
