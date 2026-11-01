@@ -21,7 +21,8 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - run: npm ci
+      # Keep lockfile resolution consistent across local builds and runners.
+      - run: npx -y npm@10.9.4 ci
       - run: npm test
       - run: npx tsc --noEmit
       - run: npm run build
