@@ -5,7 +5,7 @@ The GitHub Actions workflow builds and validates a ZIP on every push to `main`. 
 ## First publication
 
 1. Use an active [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole) account. Registration, any required fee, and Google account verification must be completed in the browser.
-2. Build and package locally: `npm ci && npm test && npx tsc --noEmit && npm run build && (cd dist && zip -qr /tmp/retrace-chrome-web-store.zip .)`. The manifest must be at the root of the ZIP.
+2. Build and package locally: `npx -y npm@10.9.4 ci --install-strategy=nested && npm test && npx tsc --noEmit && npm run build && (cd dist && zip -qr /tmp/retrace-chrome-web-store.zip .)`. The manifest must be at the root of the ZIP.
 3. In the dashboard, add a new item and upload the ZIP. Complete the Store listing, Privacy, and Distribution tabs. Use [store-assets/LISTING.md](../store-assets/LISTING.md) and [PRIVACY.md](../PRIVACY.md) as the checked-in copy. Review the copy and screenshots against the version you upload. Submit the first version manually with the desired visibility.
 4. Record the extension ID from the item URL and the publisher ID from **Publisher → Settings** in the dashboard. After the listing is live, replace the placeholder Chrome Web Store link in [README.md](../README.md).
 
