@@ -62,7 +62,7 @@ export function Settings({ onSave, indexedCount }: SettingsProps) {
             style={{ fontSize: "0.72rem", color: "var(--dim)", letterSpacing: "0.02em" }}
           >
             Your browsing history, made searchable.<br />
-            Everything stays on your machine.
+            Your search index stays on your machine.
           </p>
         </div>
 

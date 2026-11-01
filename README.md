@@ -10,7 +10,7 @@ Search your browsing history in plain English. Retrace indexes the pages you vis
 2. When you want to find something, open the extension and ask in natural language.
 3. It searches your local index using embeddings and returns the most relevant pages you've visited.
 
-Everything runs locally in your browser. There is no server, no account, and no data ever leaves your device — except for the Gemini API calls you make directly with your own key.
+The index stays in your browser. There is no Retrace server or account. Indexing and search use Gemini directly; chat uses the AI provider you select.
 
 ---
 
@@ -32,7 +32,7 @@ Everything runs locally in your browser. There is no server, no account, and no 
 
 ## Setup
 
-Retrace requires a Gemini API key for embeddings and chat.
+Retrace requires a Gemini API key for embeddings and semantic search. Chat can use Gemini, OpenAI, or Anthropic.
 
 **Getting an API key:**
 
@@ -40,7 +40,7 @@ Retrace requires a Gemini API key for embeddings and chat.
 2. Click **Create API key** and copy it.
 3. Paste the key into the extension's settings panel on first launch.
 
-Your key is stored locally in Chrome's encrypted storage and is never transmitted anywhere except directly to Google's Gemini API.
+In **Config → Chat model**, select a provider, enter a model ID, and save that provider's API key if needed. Keys are stored in local extension storage and sent only to their respective API providers.
 
 ---
 
@@ -49,7 +49,7 @@ Your key is stored locally in Chrome's encrypted storage and is never transmitte
 - **No backend.** There is no server associated with this extension. All data is stored in IndexedDB on your device.
 - **No tracking.** The extension does not collect analytics, usage data, or any personally identifiable information.
 - **You control your data.** You can clear your index at any time from the extension's settings.
-- **Direct API calls only.** The only outbound network requests are the Gemini API calls you initiate yourself.
+- **Direct API calls only.** AI requests go from your browser to Google for embeddings and search, and to your chosen chat provider for conversations.
 
 See [PRIVACY.md](PRIVACY.md) for the full privacy policy.
 
@@ -59,15 +59,15 @@ See [PRIVACY.md](PRIVACY.md) for the full privacy policy.
 
 **Why does the extension need access to my browsing history?**
 
-Reading page content as you browse is how the extension builds its local index. Without this, there would be nothing to search. The content is stored only on your device.
+Reading page content as you browse is how the extension builds its local index. Without this, there would be nothing to search. The index is stored on your device; when you use AI features, relevant content is sent directly to Google's Gemini API with your key.
 
 **Why do I need to provide my own API key?**
 
-There is no backend to proxy requests through, so API calls go directly from your browser to Google's Gemini API using your key. This keeps your data private and means you only pay for what you use.
+There is no backend to proxy requests. Gemini handles indexing and semantic search with your key. Chat requests go directly to Gemini, OpenAI, or Anthropic using your selected model and key; provider usage may be billed by that provider.
 
 **How do I delete my data?**
 
-Open the extension, go to **Settings**, and use the **Clear index** option. This wipes all stored page content and embeddings from your device.
+Open the extension, go to **Config**, and use the **Clear all indexed data** option. This wipes all stored page content and embeddings from your device.
 
 **Does this work on all pages?**
 

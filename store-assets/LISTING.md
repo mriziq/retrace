@@ -19,18 +19,18 @@ HOW IT WORKS
 
 As you browse, Retrace quietly indexes page content in the background. When you open a new tab and ask a question, it searches your local index using AI embeddings to find semantically similar pages — even if you don't remember the exact words.
 
-FULLY PRIVATE — NO BACKEND
+LOCAL INDEX — NO BACKEND
 
-Everything runs inside your browser. Your history stays in local storage on your device and is never sent to any server. The only outbound requests are the OpenAI API calls you make directly with your own key — your data goes straight to OpenAI, never through us.
+Your history index stays in local storage on your device and there is no Retrace backend. Indexing and semantic search send relevant page text and selected media directly to Google's Gemini API using your key. Chat sends your prompt and relevant search results directly to the chat provider you select (Gemini, OpenAI, or Anthropic).
 
 - No account or sign-up required
 - No analytics or telemetry
 - No backend server
-- Clear your index any time from Settings
+- Clear your index any time from Config
 
 REQUIREMENTS
 
-Retrace uses OpenAI's API to generate embeddings and answer questions. You'll need a free or paid OpenAI API key from platform.openai.com. Your key is stored in Chrome's encrypted local storage.
+Retrace uses Google's Gemini API for embeddings and semantic search, so you'll need a Gemini API key from Google AI Studio. For chat, you can choose Gemini, OpenAI, or Anthropic and enter a model ID. Other providers require their own API key. Keys are stored in Chrome's local extension storage and sent directly to their respective providers.
 
 WHAT YOU CAN ASK
 
@@ -47,6 +47,6 @@ WHAT YOU CAN ASK
 |-------|-------|
 | Category | Productivity |
 | Language | English |
-| Privacy Policy URL | https://mriziq.github.io/ask-history/PRIVACY.html |
+| Privacy Policy URL | https://github.com/mriziq/retrace/blob/main/PRIVACY.html |
 | Homepage URL | https://github.com/mriziq/retrace |
 | Version | 1.0.0 |

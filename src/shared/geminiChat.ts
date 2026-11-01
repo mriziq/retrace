@@ -20,17 +20,17 @@ interface ParsedFunctionCall {
   args: Record<string, unknown>;
 }
 
-const MODEL = "gemini-3-flash-preview";
 const BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
 async function streamOneTurn(
   apiKey: string,
+  model: string,
   contents: GeminiMessage[],
   systemInstruction: string,
   functionDeclarations: FunctionDeclaration[],
   onChunk: (text: string) => void
 ): Promise<{ modelParts: RawPart[]; functionCalls: ParsedFunctionCall[] }> {
-  const res = await fetch(`${BASE}/${MODEL}:streamGenerateContent?alt=sse&key=${apiKey}`, {
+  const res = await fetch(`${BASE}/${encodeURIComponent(model)}:streamGenerateContent?alt=sse&key=${apiKey}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -86,6 +86,7 @@ async function streamOneTurn(
 
 export async function runChat(
   apiKey: string,
+  model: string,
   userText: string,
   history: GeminiMessage[],
   systemInstruction: string,
@@ -108,7 +109,7 @@ export async function runChat(
   for (let round = 0; round <= maxRounds; round++) {
     onStatus?.("thinking");
     const { modelParts, functionCalls } = await streamOneTurn(
-      apiKey, contents, systemInstruction, functionDeclarations, onChunk
+      apiKey, model, contents, systemInstruction, functionDeclarations, onChunk
     );
 
     contents.push({ role: "model", parts: modelParts });

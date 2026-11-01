@@ -271,7 +271,8 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                 className="font-mono leading-relaxed"
                 style={{ fontSize: "0.68rem", color: "var(--dim)", letterSpacing: "0.02em" }}
               >
-                You need a Gemini API key for embeddings and chat.<br />
+                You need a Gemini API key for embeddings and search.<br />
+                You can choose a different chat provider in Config.<br />
                 It's used only in your browser.
               </p>
 

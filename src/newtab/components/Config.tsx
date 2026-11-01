@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
 import type { ActivePhase } from "./IndexingStatus";
 import { clearAllHistory, estimateStorageMB } from "../../shared/db";
+import type { ChatSettings, ChatProvider } from "../../shared/chatProviders";
 
 interface ConfigProps {
   stats: { total: number; enriched: number; unenriched: number; embedded: number; pending: number };
   activePhase: ActivePhase | null;
   apiKey: string;
+  chatSettings: ChatSettings;
+  onChangeChatSettings: (settings: ChatSettings) => void;
   onRun: () => void;
   onCancel: () => void;
   onRefresh: () => void;
@@ -27,12 +30,13 @@ function StatRow({ label, value, accent }: { label: string; value: string | numb
   );
 }
 
-export function Config({ stats, activePhase, apiKey, onRun, onCancel, onRefresh, onChangeKey, onSignOut, onClose }: ConfigProps) {
+export function Config({ stats, activePhase, apiKey, chatSettings, onChangeChatSettings, onRun, onCancel, onRefresh, onChangeKey, onSignOut, onClose }: ConfigProps) {
   const [newKey, setNewKey] = useState("");
   const [keyFocused, setKeyFocused] = useState(false);
   const [showKeyInput, setShowKeyInput] = useState(false);
   const [storageMB, setStorageMB] = useState<number | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [chatKey, setChatKey] = useState("");
 
   useEffect(() => {
     estimateStorageMB().then(setStorageMB);
@@ -304,6 +308,58 @@ export function Config({ stats, activePhase, apiKey, onRun, onCancel, onRefresh,
         {/* Divider */}
         <div style={{ borderTop: "1px solid var(--ink-2)" }} />
 
+        <section className="flex flex-col gap-3">
+          <p className="font-mono" style={{ fontSize: "0.65rem", letterSpacing: "0.22em", color: "var(--dim)", textTransform: "uppercase" }}>
+            Chat model
+          </p>
+          <label className="font-mono" style={{ fontSize: "0.68rem", color: "var(--muted)" }} htmlFor="chat-provider">Provider</label>
+          <select
+            id="chat-provider"
+            value={chatSettings.provider}
+            onChange={(e) => {
+              const provider = e.target.value as ChatProvider;
+              setChatKey("");
+              onChangeChatSettings({ ...chatSettings, provider, model: provider === "gemini" ? "gemini-3-flash-preview" : provider === "openai" ? "gpt-4.1-mini" : "claude-sonnet-4-5" });
+            }}
+            style={{ background: "var(--ink-1)", color: "var(--cream)", border: "1px solid var(--ink-3)", borderRadius: 4, padding: "8px" }}
+          >
+            <option value="gemini">Google Gemini</option>
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+          </select>
+          <label className="font-mono" style={{ fontSize: "0.68rem", color: "var(--muted)" }} htmlFor="chat-model">Model ID</label>
+          <input
+            id="chat-model"
+            value={chatSettings.model}
+            onChange={(e) => onChangeChatSettings({ ...chatSettings, model: e.target.value })}
+            placeholder={chatSettings.provider === "openai" ? "e.g. gpt-4.1-mini" : chatSettings.provider === "anthropic" ? "e.g. claude-sonnet-4-5" : "e.g. gemini-3-flash-preview"}
+            className="font-mono"
+            style={{ background: "var(--ink-1)", color: "var(--cream)", border: "1px solid var(--ink-3)", borderRadius: 4, padding: "8px", fontSize: "0.75rem" }}
+          />
+          {chatSettings.provider !== "gemini" && (
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const key = chatKey.trim();
+              if (!key) return;
+              onChangeChatSettings({ ...chatSettings, [chatSettings.provider === "openai" ? "openaiApiKey" : "anthropicApiKey"]: key });
+              setChatKey("");
+            }} className="flex flex-col gap-2">
+              <label className="font-mono" style={{ fontSize: "0.68rem", color: "var(--muted)" }} htmlFor="chat-key">
+                {chatSettings.provider === "openai" ? "OpenAI" : "Anthropic"} API key · {(chatSettings.provider === "openai" ? chatSettings.openaiApiKey : chatSettings.anthropicApiKey) ? "saved locally" : "required"}
+              </label>
+              <div className="flex gap-2">
+                <input id="chat-key" type="password" value={chatKey} onChange={(e) => setChatKey(e.target.value)} placeholder="Paste API key" autoComplete="off" className="font-mono" style={{ flex: 1, minWidth: 0, background: "var(--ink-1)", color: "var(--cream)", border: "1px solid var(--ink-3)", borderRadius: 4, padding: "8px", fontSize: "0.75rem" }} />
+                <button type="submit" disabled={!chatKey.trim()} className="font-mono" style={{ color: "var(--ink)", background: "var(--amber)", border: 0, borderRadius: 4, padding: "8px 12px", opacity: chatKey.trim() ? 1 : 0.5 }}>Save</button>
+              </div>
+            </form>
+          )}
+          <p className="font-mono" style={{ fontSize: "0.63rem", color: "var(--dim)", lineHeight: 1.5 }}>
+            Gemini still powers indexing and semantic search. Chat requests go directly to the selected provider.
+          </p>
+        </section>
+
+        <div style={{ borderTop: "1px solid var(--ink-2)" }} />
+
         {/* API Key */}
         <section>
           <p
@@ -401,7 +457,7 @@ export function Config({ stats, activePhase, apiKey, onRun, onCancel, onRefresh,
               cursor: "pointer",
             }}
           >
-            Remove key &amp; sign out
+            Remove keys &amp; sign out
           </button>
         </section>
       </div>
